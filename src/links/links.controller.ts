@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
 import { LinksService } from './links.service';
 import { ClicksService } from 'src/clicks/clicks.service';
 
-@Controller()
+@Controller('links')
 export class LinksController {
   constructor(
     private readonly linkService: LinksService,
