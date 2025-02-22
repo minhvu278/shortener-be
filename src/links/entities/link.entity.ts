@@ -1,8 +1,10 @@
+import { timestamp } from 'rxjs';
 import { Click } from 'src/clicks/entities/click.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -17,6 +19,19 @@ export class Link {
 
   @Column({ unique: true })
   shortCode: string;
+
+  @Column({ unique: true, nullable: true })
+  @Index()
+  slug?: string
+
+  @Column({ nullable: true })
+  password?: string
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date | null;
+
+  @Column({ nullable: true })
+  qrCode?: string
 
   @CreateDateColumn()
   createdAt: Date;
