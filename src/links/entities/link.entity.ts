@@ -18,6 +18,21 @@ export class Link {
   @Column({ unique: true })
   shortCode: string;
 
+  @Column({ unique: true, nullable: true })
+  customSlug?: string;
+
+  @Column({ nullable: true })
+  password?: string;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  expiresAt?: Date;
+
+  @Column({ nullable: true })
+  qrCodeUrl?: string;
+
+  @Column({ nullable: true })
+  userId?: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

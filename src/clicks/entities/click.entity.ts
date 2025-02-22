@@ -12,15 +12,18 @@ export class Click {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Link, (link) => link.clicks, { onDelete: 'CASCADE' })
-  link: Link;
-
   @Column()
-  ipAdress: string;
+  ipAddress: string;
 
-  @Column()
-  userAgent: string;
+  @Column({ nullable: true })
+  userAgent?: string;
+
+  @Column({ nullable: true })
+  country?: string;
 
   @CreateDateColumn()
   clickedAt: Date;
+
+  @ManyToOne(() => Link, (link) => link.clicks)
+  link: Link;
 }
