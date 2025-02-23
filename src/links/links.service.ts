@@ -16,23 +16,24 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) { }
 
-  async createShortLink(createLinkDto: CreateLinkDto): Promise<{ shortUrl: string }> {
+  async createShortLink(createLinkDto: CreateLinkDto): Promise<{ shortUrl: string, qrCode: string }> {
     let shortCode = createLinkDto.slug || crypto.randomUUID().replace(/-/g, '').slice(0, 6);
 
     if (createLinkDto.slug) {
       const existingSlug = await this.linkRepository.findOne({ where: {slug: createLinkDto.slug }})
 
       if (existingSlug) {
-        throw new Error('Slug da ton tai')
+        throw new Error('Slug đã tồn tại');
       }
     }
 
-    let passwordHash: string | undefined
+    let passwordHash: string | undefined;
     if (createLinkDto.password) {
-      passwordHash = await bcrypt.hash(createLinkDto.password, 10)
+      passwordHash = await bcrypt.hash(createLinkDto.password, 10);
     }
 
-    const qrCodeData = await QRCode.toDataURL(`${this.configService.get<string>('APP_URL')}/${shortCode}`);
+    const shortUrl = `${this.configService.get<string>('APP_URL')}/${shortCode}`;
+    const qrCodeData = await QRCode.toDataURL(shortUrl);
 
     const newLink = this.linkRepository.create({
       originalUrl: createLinkDto.originalUrl,
@@ -45,22 +46,21 @@ export class LinksService {
 
     await this.linkRepository.save(newLink);
 
-    return { shortUrl: `${this.configService.get<string>('APP_URL')}/${shortCode}` }
+    return { shortUrl, qrCode: qrCodeData };
   }
-
 
   async getOriginalUrl(shortCode: string, password?: string): Promise<string | null> {
     const link = await this.linkRepository.findOne({ where: [{ shortCode }, {slug: shortCode}] });
 
-    if (!link) return null
+    if (!link) return null;
 
     if (link.expiresAt && new Date() > link.expiresAt) {
-      throw new Error ('This link has expired')
+      throw new Error('This link has expired');
     }
 
     if (link.password) {
       if (!password || !(await bcrypt.compare(password, link.password))) {
-        throw new Error('Invalid Password')
+        throw new Error('Invalid Password');
       }
     }
 
