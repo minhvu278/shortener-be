@@ -10,9 +10,15 @@ export class UsersService {
     private readonly userRepository: Repository<User>
   ) {}
 
-  async create(email: string, password: string, role: string) {
-    const user = this.userRepository.create({email, password, role: 'user'})
-    return await this.userRepository.save(user)
+  async create(email: string, username: string, password: string) {
+    const user = this.userRepository.create({
+      email,
+      username,
+      password,
+      role: 'user',
+    });
+  
+    return await this.userRepository.save(user);
   }
 
   async findByEmail(email: string): Promise<User | null> {
