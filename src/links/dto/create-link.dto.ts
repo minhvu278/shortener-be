@@ -16,4 +16,7 @@ export class CreateLinkDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @IsOptional()
+  generateQrCode?: boolean;
 }
