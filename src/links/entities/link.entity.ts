@@ -17,6 +17,9 @@ export class Link {
   @Column()
   originalUrl: string;
 
+  @Column({ nullable: true })
+  title?: string;
+
   @Column({ unique: true })
   shortCode: string;
 

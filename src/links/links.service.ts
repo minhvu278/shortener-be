@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+// links.service.ts
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Link } from './entities/link.entity';
 import { Repository } from 'typeorm';
@@ -16,12 +17,21 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) {}
 
+  async getAllLinks(page: number = 1, limit: number = 10): Promise<{ links: Link[]; total: number }> {
+    const skip = (page - 1) * limit;
+    const [links, total] = await this.linkRepository.findAndCount({
+      select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt'],
+      skip,
+      take: limit,
+    });
+    return { links, total };
+  }
+
   async createShortLink(createLinkDto: CreateLinkDto): Promise<{ shortUrl: string }> {
     let shortCode = createLinkDto.slug || crypto.randomUUID().replace(/-/g, '').slice(0, 6);
 
     if (createLinkDto.slug) {
       const existingSlug = await this.linkRepository.findOne({ where: { slug: createLinkDto.slug } });
-
       if (existingSlug) {
         throw new BadRequestException({
           message: 'Slug đã tồn tại',
@@ -46,6 +56,7 @@ export class LinksService {
       password: passwordHash,
       expiresAt: createLinkDto.expiresAt ? new Date(createLinkDto.expiresAt) : null,
       qrCode: qrCodeData || undefined,
+      title: createLinkDto.title, // Lưu title
     });
 
     await this.linkRepository.save(newLink);
@@ -53,27 +64,29 @@ export class LinksService {
     return { shortUrl: `${this.configService.get<string>('APP_URL')}/${shortCode}` };
   }
 
-  async getOriginalUrl(shortCode: string, password?: string): Promise<{ requiresPassword?: boolean, originalUrl?: string, message?: string }> {
+  async getOriginalUrl(
+    shortCode: string,
+    password?: string,
+  ): Promise<{ requiresPassword?: boolean; originalUrl?: string; message?: string }> {
     const link = await this.linkRepository.findOne({ where: [{ shortCode }, { slug: shortCode }] });
 
     if (!link) {
-        return { message: "Link không tồn tại hoặc đã hết hạn." };
+      return { message: "Link không tồn tại hoặc đã hết hạn." };
     }
 
     if (link.expiresAt && new Date() > link.expiresAt) {
-        return { message: "Link đã hết hạn." };
+      return { message: "Link đã hết hạn." };
     }
 
     if (link.password) {
-        if (!password) {
-            return { requiresPassword: true, message: "Cần nhập mật khẩu để truy cập link này." };
-        }
-        if (!(await bcrypt.compare(password, link.password))) {
-            return { requiresPassword: true, message: "Mật khẩu không đúng." };
-        }
+      if (!password) {
+        return { requiresPassword: true, message: "Cần nhập mật khẩu để truy cập link này." };
+      }
+      if (!(await bcrypt.compare(password, link.password))) {
+        return { requiresPassword: true, message: "Mật khẩu không đúng." };
+      }
     }
 
     return { originalUrl: link.originalUrl };
-}
-  
+  }
 }

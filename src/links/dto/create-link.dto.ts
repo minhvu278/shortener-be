@@ -19,4 +19,6 @@ export class CreateLinkDto {
 
   @IsOptional()
   generateQrCode?: boolean;
+
+  title?: string;
 }

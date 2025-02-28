@@ -17,6 +17,18 @@ export class LinksController {
     return await this.linkService.createShortLink(createLinkDto);
   }
 
+  @Get('links')
+  async getAllLinks(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Res() res,
+  ) {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const result = await this.linkService.getAllLinks(pageNum, limitNum);
+    return res.json(result);
+  }
+
   @Get(':code')
   async redirect(
     @Param('code') shortCode: string,
@@ -47,7 +59,6 @@ export class LinksController {
     }
 
     await this.clicksService.trackClick(shortCode, req.ip, req.headers['user-agent']);
-
     return res.redirect(result.originalUrl);
   }
 }
