@@ -1,19 +1,28 @@
-import { IsOptional, IsString, IsUrl, MaxLength, IsDateString } from 'class-validator';
+// dto/create-link.dto.ts
+import { IsString, IsNotEmpty, IsOptional, IsDateString, IsBoolean } from 'class-validator';
 
 export class CreateLinkDto {
-  @IsUrl()
+  @IsString()
+  @IsNotEmpty({ message: "URL dài là bắt buộc." })
   originalUrl: string;
 
-  @IsOptional()
   @IsString()
-  @MaxLength(50)
+  @IsOptional()
   slug?: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   password?: string;
 
-  @IsOptional()
   @IsDateString()
-  expiresAt?: string;
+  @IsOptional()
+  expiresAt?: Date;
+
+  @IsBoolean()
+  @IsOptional()
+  generateQrCode?: boolean;
+
+  @IsString()
+  @IsOptional()
+  title?: string;
 }
