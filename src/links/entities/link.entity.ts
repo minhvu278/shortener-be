@@ -17,6 +17,9 @@ export class Link {
   @Column()
   originalUrl: string;
 
+  @Column({ nullable: true })
+  title?: string;
+
   @Column({ unique: true })
   shortCode: string;
 
@@ -30,7 +33,7 @@ export class Link {
   @Column({ type: 'timestamp', nullable: true })
   expiresAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'text' })
   qrCode?: string
 
   @CreateDateColumn()
