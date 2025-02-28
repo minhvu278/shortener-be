@@ -1,4 +1,3 @@
-// dto/create-link.dto.ts
 import { IsString, IsNotEmpty, IsOptional, IsDateString, IsBoolean } from 'class-validator';
 
 export class CreateLinkDto {
