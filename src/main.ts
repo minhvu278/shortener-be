@@ -8,8 +8,8 @@ async function bootstrap() {
 
   app.enableCors({
     origin: process.env.FRONTEND_URL,
-    methods: 'GET,POST',
-    allowedHeaders: 'X-Requested-With,Content-Type',
+    methods: 'GET,POST,PUT,DELETE,OPTIONS',
+    allowedHeaders: 'X-Requested-With,Content-Type,Authorization',
     credentials: true,
   });
   const PORT = process.env.PORT || 3001;

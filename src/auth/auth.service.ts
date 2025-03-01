@@ -11,25 +11,27 @@ export class AuthService {
   ) {}
 
   async register(email: string, username: string, password: string) {
-    const existingUser = await this.usersService.findByEmail(email);
-    if (existingUser) {
-      throw new BadRequestException('Email already in use');
-    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await this.usersService.create(email, username, hashedPassword);
 
-    const hashedPassword = await bcrypt.hash(password, 10)
-    return await this.usersService.create(email, username, hashedPassword)
+    const payload = { id: user.id, email: user.email, username: user.username, role: user.role };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+    };
   }
 
   async login(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
 
-    if(!user || !(await bcrypt.compare(password, user.password))) {
-      throw new UnauthorizedException('Invalid credentials')
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { id: user.id, email: user.email, role: user.role }
+    const payload = { id: user.id, email: user.email, username: user.username, role: user.role };
     return {
-      access_token: this.jwtService.sign(payload)
-    }
+      access_token: this.jwtService.sign(payload),
+      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+    };
   }
 }
