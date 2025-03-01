@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req, Re
 import { LinksService } from './links.service';
 import { ClicksService } from 'src/clicks/clicks.service';
 import { CreateLinkDto } from './dto/create-link.dto';
+import { CreateQrCodeDto } from './dto/create-qr-code.dto';
 import { ConfigService } from '@nestjs/config';
 
 @Controller()
@@ -13,8 +14,15 @@ export class LinksController {
   ) {}
 
   @Post('links')
-  async createShortLink(@Body() createLinkDto: CreateLinkDto) {
-    return await this.linkService.createShortLink(createLinkDto);
+  async createShortLink(@Body() createLinkDto: CreateLinkDto, @Res() res) {
+    const result = await this.linkService.createShortLink(createLinkDto);
+    return res.json(result);
+  }
+
+  @Post('qr-codes')
+  async createQrCode(@Body() createQrCodeDto: CreateQrCodeDto, @Res() res) {
+    const result = await this.linkService.createQrCode(createQrCodeDto);
+    return res.json(result);
   }
 
   @Get('links')
@@ -26,6 +34,18 @@ export class LinksController {
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
     const result = await this.linkService.getAllLinks(pageNum, limitNum);
+    return res.json(result);
+  }
+
+  @Get('qr-codes')
+  async getAllQrCodes(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Res() res,
+  ) {
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const result = await this.linkService.getAllQrCodes(pageNum, limitNum);
     return res.json(result);
   }
 

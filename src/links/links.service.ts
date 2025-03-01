@@ -1,4 +1,3 @@
-// links.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Link } from './entities/link.entity';
@@ -8,6 +7,13 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import * as QRCode from 'qrcode';
+import { Not, IsNull } from 'typeorm';
+
+interface CreateQrCodeDto {
+  originalUrl: string;
+  title?: string;
+  createShortLink?: boolean;
+}
 
 @Injectable()
 export class LinksService {
@@ -17,17 +23,7 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getAllLinks(page: number = 1, limit: number = 10): Promise<{ links: Link[]; total: number }> {
-    const skip = (page - 1) * limit;
-    const [links, total] = await this.linkRepository.findAndCount({
-      select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt'],
-      skip,
-      take: limit,
-    });
-    return { links, total };
-  }
-
-  async createShortLink(createLinkDto: CreateLinkDto): Promise<{ shortUrl: string }> {
+  async createShortLink(createLinkDto: CreateLinkDto): Promise<{ shortUrl: string; qrCode?: string }> {
     let shortCode = createLinkDto.slug || crypto.randomUUID().replace(/-/g, '').slice(0, 6);
 
     if (createLinkDto.slug) {
@@ -47,7 +43,7 @@ export class LinksService {
 
     const qrCodeData = createLinkDto.generateQrCode
       ? await QRCode.toDataURL(`${this.configService.get<string>('APP_URL')}/${shortCode}`)
-      : null;
+      : undefined;
 
     const newLink = this.linkRepository.create({
       originalUrl: createLinkDto.originalUrl,
@@ -56,12 +52,38 @@ export class LinksService {
       password: passwordHash,
       expiresAt: createLinkDto.expiresAt ? new Date(createLinkDto.expiresAt) : null,
       qrCode: qrCodeData || undefined,
-      title: createLinkDto.title, // Lưu title
+      title: createLinkDto.title,
     });
 
     await this.linkRepository.save(newLink);
 
-    return { shortUrl: `${this.configService.get<string>('APP_URL')}/${shortCode}` };
+    return { shortUrl: `${this.configService.get<string>('APP_URL')}/${shortCode}`, qrCode: qrCodeData };
+  }
+
+  async createQrCode(createQrCodeDto: CreateQrCodeDto): Promise<{ qrCode: string; shortUrl?: string }> {
+    let shortCode: string | undefined;
+    let qrCodeData: string;
+  
+    if (createQrCodeDto.createShortLink) {
+      shortCode = crypto.randomUUID().replace(/-/g, '').slice(0, 6);
+      qrCodeData = await QRCode.toDataURL(`${this.configService.get<string>('APP_URL')}/${shortCode}`);
+    } else {
+      qrCodeData = await QRCode.toDataURL(createQrCodeDto.originalUrl);
+    }
+  
+    const newLink = this.linkRepository.create({
+      originalUrl: createQrCodeDto.originalUrl,
+      shortCode: shortCode || crypto.randomUUID().replace(/-/g, '').slice(0, 6),
+      title: createQrCodeDto.title,
+      qrCode: qrCodeData,
+    });
+  
+    await this.linkRepository.save(newLink);
+  
+    return {
+      qrCode: qrCodeData,
+      shortUrl: shortCode ? `${this.configService.get<string>('APP_URL')}/${shortCode}` : undefined,
+    };
   }
 
   async getOriginalUrl(
@@ -88,5 +110,28 @@ export class LinksService {
     }
 
     return { originalUrl: link.originalUrl };
+  }
+
+  async getAllLinks(page: number = 1, limit: number = 10): Promise<{ links: Link[]; total: number }> {
+    const skip = (page - 1) * limit;
+    const [links, total] = await this.linkRepository.findAndCount({
+      select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt'],
+      skip,
+      take: limit,
+      order: { createdAt: "DESC" },
+    });
+    return { links, total };
+  }
+
+  async getAllQrCodes(page: number = 1, limit: number = 10): Promise<{ qrCodes: Link[]; total: number }> {
+    const skip = (page - 1) * limit;
+    const [qrCodes, total] = await this.linkRepository.findAndCount({
+      where: { qrCode: Not(IsNull()) },
+      select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt', 'qrCode'],
+      skip,
+      take: limit,
+      order: { createdAt: "DESC" },
+    });
+    return { qrCodes, total };
   }
 }

@@ -20,8 +20,8 @@ export class Link {
   @Column({ nullable: true })
   title?: string;
 
-  @Column({ unique: true })
-  shortCode: string;
+  @Column({ unique: true, nullable: true })
+  shortCode?: string;
 
   @Column({ unique: true, nullable: true })
   @Index()
