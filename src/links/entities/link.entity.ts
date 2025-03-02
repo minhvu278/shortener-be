@@ -1,10 +1,12 @@
 import { timestamp } from 'rxjs';
 import { Click } from 'src/clicks/entities/click.entity';
+import { User } from 'src/users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
   Index,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -41,4 +43,7 @@ export class Link {
 
   @OneToMany(() => Click, (click) => click.link)
   clicks: Click[];
+
+  @ManyToOne(() => User, (user) => user.links)
+  user: User;
 }

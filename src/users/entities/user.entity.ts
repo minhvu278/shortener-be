@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Link } from "src/links/entities/link.entity";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 export type UserRole = 'user' | 'admin';
 
@@ -24,4 +25,7 @@ export class User {
 
   @Column({ default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
+  @OneToMany(() => Link, (link) => link.user)
+  links: Link[];
 }

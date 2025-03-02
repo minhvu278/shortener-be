@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import * as QRCode from 'qrcode';
 import { Not, IsNull } from 'typeorm';
+import { User } from 'src/users/entities/user.entity';
 
 interface CreateQrCodeDto {
   originalUrl: string;
@@ -23,7 +24,7 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) {}
 
-  async createShortLink(createLinkDto: CreateLinkDto): Promise<{ shortUrl: string; qrCode?: string }> {
+  async createShortLink(createLinkDto: CreateLinkDto, user: User): Promise<{ shortUrl: string; qrCode?: string }> {
     let shortCode = createLinkDto.slug || crypto.randomUUID().replace(/-/g, '').slice(0, 6);
 
     if (createLinkDto.slug) {
@@ -53,6 +54,7 @@ export class LinksService {
       expiresAt: createLinkDto.expiresAt ? new Date(createLinkDto.expiresAt) : null,
       qrCode: qrCodeData || undefined,
       title: createLinkDto.title,
+      user,
     });
 
     await this.linkRepository.save(newLink);
@@ -60,7 +62,7 @@ export class LinksService {
     return { shortUrl: `${this.configService.get<string>('APP_URL')}/${shortCode}`, qrCode: qrCodeData };
   }
 
-  async createQrCode(createQrCodeDto: CreateQrCodeDto): Promise<{ qrCode: string; shortUrl?: string }> {
+  async createQrCode(createQrCodeDto: CreateQrCodeDto, user: User): Promise<{ qrCode: string; shortUrl?: string }> {
     let shortCode: string | undefined;
     let qrCodeData: string;
   
@@ -76,6 +78,7 @@ export class LinksService {
       shortCode: shortCode || crypto.randomUUID().replace(/-/g, '').slice(0, 6),
       title: createQrCodeDto.title,
       qrCode: qrCodeData,
+      user
     });
   
     await this.linkRepository.save(newLink);
@@ -112,9 +115,10 @@ export class LinksService {
     return { originalUrl: link.originalUrl };
   }
 
-  async getAllLinks(page: number = 1, limit: number = 10): Promise<{ links: Link[]; total: number }> {
+  async getAllLinks(user: User, page: number = 1, limit: number = 10): Promise<{ links: Link[]; total: number }> {
     const skip = (page - 1) * limit;
     const [links, total] = await this.linkRepository.findAndCount({
+      where: {user: { id: user.id }},
       select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt'],
       skip,
       take: limit,
@@ -123,10 +127,10 @@ export class LinksService {
     return { links, total };
   }
 
-  async getAllQrCodes(page: number = 1, limit: number = 10): Promise<{ qrCodes: Link[]; total: number }> {
+  async getAllQrCodes(user: User,page: number = 1, limit: number = 10): Promise<{ qrCodes: Link[]; total: number }> {
     const skip = (page - 1) * limit;
     const [qrCodes, total] = await this.linkRepository.findAndCount({
-      where: { qrCode: Not(IsNull()) },
+      where: { qrCode: Not(IsNull()), user: { id: user.id } },
       select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt', 'qrCode'],
       skip,
       take: limit,

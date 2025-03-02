@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { LinksService } from './links.service';
 import { ClicksService } from 'src/clicks/clicks.service';
 import { CreateLinkDto } from './dto/create-link.dto';
 import { CreateQrCodeDto } from './dto/create-qr-code.dto';
 import { ConfigService } from '@nestjs/config';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller()
 export class LinksController {
@@ -14,38 +15,48 @@ export class LinksController {
   ) {}
 
   @Post('links')
-  async createShortLink(@Body() createLinkDto: CreateLinkDto, @Res() res) {
-    const result = await this.linkService.createShortLink(createLinkDto);
+  @UseGuards(JwtAuthGuard)
+  async createShortLink(@Body() createLinkDto: CreateLinkDto, @Req() req, @Res() res) {
+    const user = req.user;
+    const result = await this.linkService.createShortLink(createLinkDto, user);
     return res.json(result);
   }
 
   @Post('qr-codes')
-  async createQrCode(@Body() createQrCodeDto: CreateQrCodeDto, @Res() res) {
-    const result = await this.linkService.createQrCode(createQrCodeDto);
+  @UseGuards(JwtAuthGuard)
+  async createQrCode(@Body() createQrCodeDto: CreateQrCodeDto, @Req() req, @Res() res) {
+    const user = req.user;
+    const result = await this.linkService.createQrCode(createQrCodeDto, user);
     return res.json(result);
   }
 
   @Get('links')
+  @UseGuards(JwtAuthGuard)
   async getAllLinks(
     @Query('page') page: string,
     @Query('limit') limit: string,
+    @Req() req,
     @Res() res,
   ) {
+    const user = req.user;
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
-    const result = await this.linkService.getAllLinks(pageNum, limitNum);
+    const result = await this.linkService.getAllLinks(user, pageNum, limitNum);
     return res.json(result);
   }
 
   @Get('qr-codes')
+  @UseGuards(JwtAuthGuard)
   async getAllQrCodes(
     @Query('page') page: string,
     @Query('limit') limit: string,
+    @Req() req,
     @Res() res,
   ) {
+    const user = req.user;
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
-    const result = await this.linkService.getAllQrCodes(pageNum, limitNum);
+    const result = await this.linkService.getAllQrCodes(user, pageNum, limitNum);
     return res.json(result);
   }
 
@@ -61,24 +72,25 @@ export class LinksController {
 
     const isAjaxRequest = req.headers['x-requested-with'] === 'XMLHttpRequest';
 
-    if (isAjaxRequest) {
-      return res.json(result);
-    }
-
     if (result.requiresPassword) {
-      return res.send(`
-        <html>
-          <head><meta http-equiv="refresh" content="0;url=${frontendUrl}/password/${shortCode}" /></head>
-          <body>Redirecting...</body>
-        </html>
-      `);
+      if (isAjaxRequest) {
+        return res.json(result);
+      } else {
+        // Redirect trực tiếp cho trình duyệt
+        return res.redirect(`${frontendUrl}/password/${shortCode}`);
+      }
     }
 
     if (result.message) {
-      return res.status(400).send(result.message);
+      return res.status(400).json({ message: result.message });
     }
 
+    // Luôn trả về JSON cho AJAX, redirect cho trình duyệt
     await this.clicksService.trackClick(shortCode, req.ip, req.headers['user-agent']);
-    return res.redirect(result.originalUrl);
+    if (isAjaxRequest) {
+      return res.json({ originalUrl: result.originalUrl });
+    } else {
+      return res.redirect(result.originalUrl);
+    }
   }
 }

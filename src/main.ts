@@ -11,6 +11,7 @@ async function bootstrap() {
     methods: 'GET,POST,PUT,DELETE,OPTIONS',
     allowedHeaders: 'X-Requested-With,Content-Type,Authorization',
     credentials: true,
+    exposedHeaders: ['Location'],
   });
   const PORT = process.env.PORT || 3001;
   await app.listen(PORT, '0.0.0.0');
