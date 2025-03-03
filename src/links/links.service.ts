@@ -24,6 +24,28 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) {}
 
+  async getRemainingLinks(user: User): Promise<{ remaining: number; totalCreated: number; monthlyLimit: number }> {
+    const monthlyLimit = 5;
+
+    if(user.plan === 'pro') {
+      return {remaining: Infinity, totalCreated: 0, monthlyLimit}
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const totalCreated = await this.linkRepository.count({
+      where: {
+        user: { id: user.id },
+        createdAt: Between(startOfMonth, endOfMonth),
+      },
+    });
+
+    const remaining = Math.max(0, monthlyLimit - totalCreated);
+    return { remaining, totalCreated, monthlyLimit}
+  }
+
   private async checkMonthlyLinkLimit(user: User): Promise<void> {
     if(user.plan === 'pro') {
       return
