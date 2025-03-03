@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Link } from './entities/link.entity';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { CreateLinkDto } from './dto/create-link.dto';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -24,7 +24,30 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) {}
 
+  private async checkMonthlyLinkLimit(user: User): Promise<void> {
+    if(user.plan === 'pro') {
+      return
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const linkCount = await this.linkRepository.count({
+      where: {
+        user: { id: user.id },
+        createdAt: Between(startOfMonth, endOfMonth)
+      }
+    })
+
+    const monthlyLimit = 5;
+    if (linkCount >= monthlyLimit) {
+      throw new BadRequestException('Bạn đã đạt giới hạn 5 link trong tháng này. Vui lòng nâng cấp lên gói Pro để tạo thêm.');
+    }
+  }
+
   async createShortLink(createLinkDto: CreateLinkDto, user: User): Promise<{ shortUrl: string; qrCode?: string }> {
+    await this.checkMonthlyLinkLimit(user);
     let shortCode = createLinkDto.slug || crypto.randomUUID().replace(/-/g, '').slice(0, 6);
 
     if (createLinkDto.slug) {
@@ -63,6 +86,7 @@ export class LinksService {
   }
 
   async createQrCode(createQrCodeDto: CreateQrCodeDto, user: User): Promise<{ qrCode: string; shortUrl?: string }> {
+    await this.checkMonthlyLinkLimit(user);
     let shortCode: string | undefined;
     let qrCodeData: string;
   
