@@ -60,6 +60,14 @@ export class LinksController {
     return res.json(result);
   }
 
+  @Get('remaining-links')
+  @UseGuards(JwtAuthGuard)
+  async getRemainingLinks(@Req() req, @Res() res) {
+    const user = req.user;
+    const result = await this.linkService.getRemainingLinks(user);
+    return res.json(result);
+  }
+
   @Get(':code')
   async redirect(
     @Param('code') shortCode: string,
