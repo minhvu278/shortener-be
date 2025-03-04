@@ -25,10 +25,12 @@ export class LinksService {
   ) {}
 
   async getRemainingLinks(user: User): Promise<{ remaining: number; totalCreated: number; monthlyLimit: number }> {
+    console.log(`User ${user.id} plan: ${user.plan}`); // Debug: Kiểm tra user.plan
     const monthlyLimit = 5;
 
-    if(user.plan === 'pro') {
-      return {remaining: Infinity, totalCreated: 0, monthlyLimit}
+    if (user.plan === 'pro') {
+      console.log(`User ${user.id} is Pro, returning Infinity remaining links`);
+      return { remaining: Infinity, totalCreated: 0, monthlyLimit };
     }
 
     const now = new Date();
@@ -43,12 +45,15 @@ export class LinksService {
     });
 
     const remaining = Math.max(0, monthlyLimit - totalCreated);
-    return { remaining, totalCreated, monthlyLimit}
+    console.log(`User ${user.id} (free): Total created: ${totalCreated}, Remaining: ${remaining}`);
+    return { remaining, totalCreated, monthlyLimit };
   }
 
   private async checkMonthlyLinkLimit(user: User): Promise<void> {
-    if(user.plan === 'pro') {
-      return
+    console.log(`Checking monthly limit for user ${user.id}, plan: ${user.plan}`); // Debug
+    if (user.plan === 'pro') {
+      console.log(`User ${user.id} is Pro, skipping limit check`);
+      return;
     }
 
     const now = new Date();
@@ -58,14 +63,16 @@ export class LinksService {
     const linkCount = await this.linkRepository.count({
       where: {
         user: { id: user.id },
-        createdAt: Between(startOfMonth, endOfMonth)
-      }
-    })
+        createdAt: Between(startOfMonth, endOfMonth),
+      },
+    });
 
     const monthlyLimit = 5;
     if (linkCount >= monthlyLimit) {
+      console.log(`User ${user.id} has reached limit: ${linkCount}/${monthlyLimit}`);
       throw new BadRequestException('Bạn đã đạt giới hạn 5 link trong tháng này. Vui lòng nâng cấp lên gói Pro để tạo thêm.');
     }
+    console.log(`User ${user.id} can create more links: ${linkCount}/${monthlyLimit}`);
   }
 
   async createShortLink(createLinkDto: CreateLinkDto, user: User): Promise<{ shortUrl: string; qrCode?: string }> {
@@ -111,24 +118,24 @@ export class LinksService {
     await this.checkMonthlyLinkLimit(user);
     let shortCode: string | undefined;
     let qrCodeData: string;
-  
+
     if (createQrCodeDto.createShortLink) {
       shortCode = crypto.randomUUID().replace(/-/g, '').slice(0, 6);
       qrCodeData = await QRCode.toDataURL(`${this.configService.get<string>('APP_URL')}/${shortCode}`);
     } else {
       qrCodeData = await QRCode.toDataURL(createQrCodeDto.originalUrl);
     }
-  
+
     const newLink = this.linkRepository.create({
       originalUrl: createQrCodeDto.originalUrl,
       shortCode: shortCode || crypto.randomUUID().replace(/-/g, '').slice(0, 6),
       title: createQrCodeDto.title,
       qrCode: qrCodeData,
-      user
+      user,
     });
-  
+
     await this.linkRepository.save(newLink);
-  
+
     return {
       qrCode: qrCodeData,
       shortUrl: shortCode ? `${this.configService.get<string>('APP_URL')}/${shortCode}` : undefined,
@@ -164,7 +171,7 @@ export class LinksService {
   async getAllLinks(user: User, page: number = 1, limit: number = 10): Promise<{ links: Link[]; total: number }> {
     const skip = (page - 1) * limit;
     const [links, total] = await this.linkRepository.findAndCount({
-      where: {user: { id: user.id }},
+      where: { user: { id: user.id } },
       select: ['id', 'title', 'originalUrl', 'shortCode', 'slug', 'expiresAt', 'createdAt'],
       skip,
       take: limit,
@@ -173,7 +180,7 @@ export class LinksService {
     return { links, total };
   }
 
-  async getAllQrCodes(user: User,page: number = 1, limit: number = 10): Promise<{ qrCodes: Link[]; total: number }> {
+  async getAllQrCodes(user: User, page: number = 1, limit: number = 10): Promise<{ qrCodes: Link[]; total: number }> {
     const skip = (page - 1) * limit;
     const [qrCodes, total] = await this.linkRepository.findAndCount({
       where: { qrCode: Not(IsNull()), user: { id: user.id } },

@@ -9,28 +9,14 @@ export class UsersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>
   ) {}
-
-  async create(email: string, username: string, password: string) {
-    const existingEmail = await this.userRepository.findOne({ where: { email } });
-    if (existingEmail) {
-      throw new BadRequestException('Email already in use');
+  
+  async create(email: string, username: string, password: string): Promise<User> {
+    const existingUser = await this.userRepository.findOne({ where: [{ email }, { username }] });
+    if (existingUser) {
+      throw new BadRequestException('Email hoặc username đã tồn tại.');
     }
-
-    const existingUsername = await this.userRepository.findOne({ where: { username } });
-    if (existingUsername) {
-      throw new BadRequestException('Username already taken');
-    }
-
-    const user = this.userRepository.create({
-      email,
-      username,
-      password,
-      role: 'user',
-    });
-
-    const savedUser = await this.userRepository.save(user);
-    const {password: _, ...result} = savedUser
-    return result;
+    const user = this.userRepository.create({ email, username, password, plan: 'free' });
+    return await this.userRepository.save(user);
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -39,5 +25,17 @@ export class UsersService {
 
   async findById(id: number): Promise<User | null> {
     return await this.userRepository.findOne({ where: { id } });
+  }
+
+  async upgradeToPro(userId: number): Promise<User> {
+    console.log(`Upgrading user ${userId} to Pro`);
+    const user = await this.userRepository.findOne({ where: { id: userId }, relations: ['links'] });
+    if (!user) {
+      console.log(`User ${userId} not found`);
+      throw new BadRequestException('User không tồn tại.');
+    }
+    user.plan = 'pro';
+    const updatedUser = await this.userRepository.save(user);
+    return updatedUser;
   }
 }
