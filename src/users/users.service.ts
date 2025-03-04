@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { PlanType, User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -27,14 +27,18 @@ export class UsersService {
     return await this.userRepository.findOne({ where: { id } });
   }
 
-  async upgradeToPro(userId: number): Promise<User> {
-    console.log(`Upgrading user ${userId} to Pro`);
+  async upgradePlan(userId: number, plan: PlanType): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id: userId }, relations: ['links'] });
     if (!user) {
-      console.log(`User ${userId} not found`);
       throw new BadRequestException('User không tồn tại.');
     }
-    user.plan = 'pro';
+    if (plan === 'enterprise') {
+      throw new BadRequestException('Vui lòng liên hệ để đăng ký gói Enterprise.');
+    }
+    if (plan === user.plan) {
+      throw new BadRequestException(`Người dùng đã ở gói ${plan}.`);
+    }
+    user.plan = plan;
     const updatedUser = await this.userRepository.save(user);
     return updatedUser;
   }

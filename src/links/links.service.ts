@@ -1,13 +1,13 @@
+// links.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Link } from './entities/link.entity';
-import { Between, Repository } from 'typeorm';
+import { Between, Repository, Not, IsNull } from 'typeorm';
 import { CreateLinkDto } from './dto/create-link.dto';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import * as QRCode from 'qrcode';
-import { Not, IsNull } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 
 interface CreateQrCodeDto {
@@ -24,41 +24,76 @@ export class LinksService {
     private readonly configService: ConfigService,
   ) {}
 
-  async getRemainingLinks(user: User): Promise<{ remaining: number; totalCreated: number; monthlyLimit: number }> {
-    console.log(`User ${user.id} plan: ${user.plan}`); // Debug: Kiểm tra user.plan
-    const monthlyLimit = 5;
-
-    if (user.plan === 'pro') {
-      console.log(`User ${user.id} is Pro, returning Infinity remaining links`);
-      return { remaining: Infinity, totalCreated: 0, monthlyLimit };
+  // Định nghĩa giới hạn cho từng gói
+  private getPlanLimits(plan: string): { linkLimit: number; qrCodeLimit: number } {
+    switch (plan) {
+      case 'free':
+        return { linkLimit: 5, qrCodeLimit: 1 }; // Giới hạn cho gói Free
+      case 'basic': // Core
+        return { linkLimit: 100, qrCodeLimit: 5 };
+      case 'growth':
+        return { linkLimit: 500, qrCodeLimit: 10 };
+      case 'premium':
+        return { linkLimit: 3000, qrCodeLimit: 200 };
+      case 'enterprise':
+        return { linkLimit: Infinity, qrCodeLimit: Infinity };
+      default:
+        return { linkLimit: 5, qrCodeLimit: 1 }; // Mặc định là gói Free
     }
+  }
+
+  async getRemainingLinks(user: User): Promise<{ remainingLinks: number; remainingQrCodes: number; totalCreatedLinks: number; totalCreatedQrCodes: number; linkLimit: number; qrCodeLimit: number }> {
+    const { linkLimit, qrCodeLimit } = this.getPlanLimits(user.plan);
+    console.log(`User ${user.id} plan: ${user.plan}, Link Limit: ${linkLimit}, QR Code Limit: ${qrCodeLimit}`);
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    const totalCreated = await this.linkRepository.count({
+    // Đếm số link đã tạo trong tháng
+    const totalCreatedLinks = await this.linkRepository.count({
       where: {
         user: { id: user.id },
         createdAt: Between(startOfMonth, endOfMonth),
       },
     });
 
-    const remaining = Math.max(0, monthlyLimit - totalCreated);
-    console.log(`User ${user.id} (free): Total created: ${totalCreated}, Remaining: ${remaining}`);
-    return { remaining, totalCreated, monthlyLimit };
+    // Đếm số QR code đã tạo trong tháng (link có qrCode không null)
+    const totalCreatedQrCodes = await this.linkRepository.count({
+      where: {
+        user: { id: user.id },
+        qrCode: Not(IsNull()),
+        createdAt: Between(startOfMonth, endOfMonth),
+      },
+    });
+
+    const remainingLinks = Math.max(0, linkLimit - totalCreatedLinks);
+    const remainingQrCodes = Math.max(0, qrCodeLimit - totalCreatedQrCodes);
+
+    console.log(`User ${user.id}: Total Links: ${totalCreatedLinks}/${linkLimit}, Total QR Codes: ${totalCreatedQrCodes}/${qrCodeLimit}`);
+    return { remainingLinks, remainingQrCodes, totalCreatedLinks, totalCreatedQrCodes, linkLimit, qrCodeLimit };
   }
 
-  private async checkMonthlyLinkLimit(user: User): Promise<void> {
-    console.log(`Checking monthly limit for user ${user.id}, plan: ${user.plan}`); // Debug
-    if (user.plan === 'pro') {
-      console.log(`User ${user.id} is Pro, skipping limit check`);
-      return;
-    }
+  private async checkMonthlyLinkLimit(user: User, isQrCode: boolean = false): Promise<void> {
+    const { linkLimit, qrCodeLimit } = this.getPlanLimits(user.plan);
+    console.log(`Checking limits for user ${user.id}, plan: ${user.plan}`);
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    if (isQrCode) {
+      const qrCodeCount = await this.linkRepository.count({
+        where: {
+          user: { id: user.id },
+          qrCode: Not(IsNull()),
+          createdAt: Between(startOfMonth, endOfMonth),
+        },
+      });
+      if (qrCodeCount >= qrCodeLimit) {
+        throw new BadRequestException(`Bạn đã đạt giới hạn ${qrCodeLimit} QR Code trong tháng này. Vui lòng nâng cấp gói để tạo thêm.`);
+      }
+    }
 
     const linkCount = await this.linkRepository.count({
       where: {
@@ -67,16 +102,16 @@ export class LinksService {
       },
     });
 
-    const monthlyLimit = 5;
-    if (linkCount >= monthlyLimit) {
-      console.log(`User ${user.id} has reached limit: ${linkCount}/${monthlyLimit}`);
-      throw new BadRequestException('Bạn đã đạt giới hạn 5 link trong tháng này. Vui lòng nâng cấp lên gói Pro để tạo thêm.');
+    if (linkCount >= linkLimit) {
+      throw new BadRequestException(`Bạn đã đạt giới hạn ${linkLimit} link trong tháng này. Vui lòng nâng cấp gói để tạo thêm.`);
     }
-    console.log(`User ${user.id} can create more links: ${linkCount}/${monthlyLimit}`);
   }
 
   async createShortLink(createLinkDto: CreateLinkDto, user: User): Promise<{ shortUrl: string; qrCode?: string }> {
-    await this.checkMonthlyLinkLimit(user);
+    // Kiểm tra giới hạn (nếu có QR code thì kiểm tra cả QR code limit)
+    const isQrCode = createLinkDto.generateQrCode || false;
+    await this.checkMonthlyLinkLimit(user, isQrCode);
+
     let shortCode = createLinkDto.slug || crypto.randomUUID().replace(/-/g, '').slice(0, 6);
 
     if (createLinkDto.slug) {
@@ -115,7 +150,9 @@ export class LinksService {
   }
 
   async createQrCode(createQrCodeDto: CreateQrCodeDto, user: User): Promise<{ qrCode: string; shortUrl?: string }> {
-    await this.checkMonthlyLinkLimit(user);
+    // Kiểm tra giới hạn (luôn kiểm tra QR code limit vì hàm này tạo QR code)
+    await this.checkMonthlyLinkLimit(user, true);
+
     let shortCode: string | undefined;
     let qrCodeData: string;
 

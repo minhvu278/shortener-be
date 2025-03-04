@@ -2,7 +2,7 @@ import { Link } from "src/links/entities/link.entity";
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 export type UserRole = 'user' | 'admin';
-export type PlanType = 'free' | 'pro';
+export type PlanType = 'free' | 'basic' | 'growth' | 'premium' | 'enterprise';
 
 @Entity()
 export class User {
@@ -15,7 +15,7 @@ export class User {
   @Column()
   password: string
 
-  @Column({ type: 'enum', enum: ['free', 'pro'], default: 'free' })
+  @Column({ type: 'enum', enum: ['free', 'basic', 'growth', 'premium', 'enterprise'], default: 'free' })
   plan: PlanType;
 
   @Column({ unique: true })
