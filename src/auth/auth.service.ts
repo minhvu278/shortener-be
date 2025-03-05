@@ -14,10 +14,10 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await this.usersService.create(email, username, hashedPassword);
 
-    const payload = { id: user.id, email: user.email, username: user.username, role: user.role };
+    const payload = { id: user.id, email: user.email, username: user.username, role: user.role, plan: user.plan };
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+      user: { id: user.id, email: user.email, username: user.username, role: user.role, plan: user.plan },
     };
   }
 
@@ -28,10 +28,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { id: user.id, email: user.email, username: user.username, role: user.role };
+    const payload = { id: user.id, email: user.email, username: user.username, role: user.role, plan: user.plan };
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: user.id, email: user.email, username: user.username, role: user.role },
+      user: { id: user.id, email: user.email, username: user.username, role: user.role, plan: user.plan },
+    };
+  }
+
+  async refreshToken(userId: number) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const payload = { id: user.id, email: user.email, username: user.username, role: user.role, plan: user.plan };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: { id: user.id, email: user.email, username: user.username, role: user.role, plan: user.plan },
     };
   }
 }

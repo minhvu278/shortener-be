@@ -31,7 +31,14 @@ export class AuthController {
       throw new UnauthorizedException('User not found');
     }
 
-    const { password, ...result } = user; // Loại bỏ password
+    const { password, ...result } = user;
     return result;
+  }
+
+  @Post('refresh-token')
+  @UseGuards(JwtAuthGuard)
+  async refreshToken(@Req() request: any) {
+    const userId = request.user.id;
+    return await this.authService.refreshToken(userId);
   }
 }
