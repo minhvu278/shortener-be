@@ -2,7 +2,7 @@ import { Controller, Post, Body, Res } from '@nestjs/common';
 import { PayPalService } from './paypal.service';
 import { Response } from 'express';
 
-@Controller('api/paypal')
+@Controller('paypal')
 export class PayPalController {
   constructor(private readonly payPalService: PayPalService) {}
 

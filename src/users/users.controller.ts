@@ -4,7 +4,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Response } from 'express';
 import { PlanType } from './entities/user.entity';
 
-@Controller('api')
+@Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

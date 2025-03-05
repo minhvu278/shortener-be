@@ -44,7 +44,6 @@ export class LinksService {
 
   async getRemainingLinks(user: User): Promise<{ remainingLinks: number; remainingQrCodes: number; totalCreatedLinks: number; totalCreatedQrCodes: number; linkLimit: number; qrCodeLimit: number }> {
     const { linkLimit, qrCodeLimit } = this.getPlanLimits(user.plan);
-    console.log(`User ${user.id} plan: ${user.plan}, Link Limit: ${linkLimit}, QR Code Limit: ${qrCodeLimit}`);
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -70,13 +69,11 @@ export class LinksService {
     const remainingLinks = Math.max(0, linkLimit - totalCreatedLinks);
     const remainingQrCodes = Math.max(0, qrCodeLimit - totalCreatedQrCodes);
 
-    console.log(`User ${user.id}: Total Links: ${totalCreatedLinks}/${linkLimit}, Total QR Codes: ${totalCreatedQrCodes}/${qrCodeLimit}`);
     return { remainingLinks, remainingQrCodes, totalCreatedLinks, totalCreatedQrCodes, linkLimit, qrCodeLimit };
   }
 
   private async checkMonthlyLinkLimit(user: User, isQrCode: boolean = false): Promise<void> {
     const { linkLimit, qrCodeLimit } = this.getPlanLimits(user.plan);
-    console.log(`Checking limits for user ${user.id}, plan: ${user.plan}`);
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
