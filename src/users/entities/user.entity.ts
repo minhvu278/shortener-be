@@ -1,4 +1,4 @@
-import { Link } from "src/links/entities/link.entity";
+import { Link } from '../../links/entities/link.entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 export type UserRole = 'user' | 'admin';
