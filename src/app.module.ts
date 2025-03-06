@@ -23,7 +23,12 @@ import { PayPalModule } from './paypal/paypal.module';
         password: configService.get<string>('DATABASE_PASSWORD'),
         database: configService.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
+        migrations: ['dist/migrations/*{.ts,.js}'],
+        migrationsRun: true,
+        cli: {
+          migrationsDir: 'src/migrations',
+        },
       }),
     }),
     LinksModule,

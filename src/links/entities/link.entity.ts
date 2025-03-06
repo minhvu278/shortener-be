@@ -1,6 +1,5 @@
-import { timestamp } from 'rxjs';
-import { Click } from 'src/clicks/entities/click.entity';
-import { User } from 'src/users/entities/user.entity';
+import { Click } from '../../clicks/entities/click.entity';
+import { User } from '../../users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
